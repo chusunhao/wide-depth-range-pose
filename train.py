@@ -45,10 +45,15 @@ if True:
     from torch.utils.data import dataloader
     from torch.multiprocessing import reductions
     from multiprocessing.reduction import ForkingPickler
+
     default_collate_func = dataloader.default_collate
+
+
     def default_collate_override(batch):
         dataloader._use_shared_memory = False
         return default_collate_func(batch)
+
+
     setattr(dataloader, 'default_collate', default_collate_override)
     for t in torch._storage_classes:
         if sys.version_info[0] == 2:
@@ -57,6 +62,7 @@ if True:
         else:
             if t in ForkingPickler._extra_reducers:
                 del ForkingPickler._extra_reducers[t]
+
 
 def accumulate_dicts(data):
     all_data = all_gather(data)
@@ -70,6 +76,7 @@ def accumulate_dicts(data):
         data.update(d)
 
     return data
+
 
 @torch.no_grad()
 def valid(cfg, epoch, loader, model, device, logger=None):
@@ -99,15 +106,15 @@ def valid(cfg, epoch, loader, model, device, logger=None):
             imgpath, imgname = os.path.split(meta_infos[bIdx]['path'])
             name_prefix = imgpath.replace(os.sep, '_').replace('.', '') + '_' + os.path.splitext(imgname)[0]
 
-            rawImg, visImg, gtImg = visualize_pred(images.tensors[bIdx], targets[bIdx], pred[bIdx], 
-                cfg['INPUT']['PIXEL_MEAN'],  cfg['INPUT']['PIXEL_STD'], meshes)
+            rawImg, visImg, gtImg = visualize_pred(images.tensors[bIdx], targets[bIdx], pred[bIdx],
+                                                   cfg['INPUT']['PIXEL_MEAN'], cfg['INPUT']['PIXEL_STD'], meshes)
             # cv2.imwrite(cfg['RUNTIME']['WORKING_DIR'] + name_prefix + '.png', rawImg)
             cv2.imwrite(cfg['RUNTIME']['WORKING_DIR'] + name_prefix + '_pred.png', visImg)
             cv2.imwrite(cfg['RUNTIME']['WORKING_DIR'] + name_prefix + '_gt.png', gtImg)
 
         # pred = [p.to('cpu') for p in pred]
         for m, p in zip(meta_infos, pred):
-            preds.update({m['path']:{
+            preds.update({m['path']: {
                 'meta': m,
                 'pred': p
             }})
@@ -116,7 +123,7 @@ def valid(cfg, epoch, loader, model, device, logger=None):
 
     if get_rank() != 0:
         return
-    
+
     accuracy_adi_per_class, accuracy_rep_per_class, accuracy_adi_per_depth, accuracy_rep_per_depth, depth_range \
         = evaluate(cfg, preds)
 
@@ -124,9 +131,9 @@ def valid(cfg, epoch, loader, model, device, logger=None):
 
     # writing log to tensorboard
     if logger:
-        classNum = cfg['DATASETS']['N_CLASS'] - 1 # get rid of background class        
-        assert(len(accuracy_adi_per_class) == classNum)
-        assert(len(accuracy_rep_per_class) == classNum)
+        classNum = cfg['DATASETS']['N_CLASS'] - 1  # get rid of background class
+        assert (len(accuracy_adi_per_class) == classNum)
+        assert (len(accuracy_rep_per_class) == classNum)
 
         all_adi = {}
         all_rep = {}
@@ -137,7 +144,7 @@ def valid(cfg, epoch, loader, model, device, logger=None):
             logger.add_scalars('ADI/' + className, accuracy_adi_per_class[i], epoch)
             logger.add_scalars('REP/' + className, accuracy_rep_per_class[i], epoch)
             # 
-            assert(len(accuracy_adi_per_class[i]) == len(accuracy_rep_per_class[i]))
+            assert (len(accuracy_adi_per_class[i]) == len(accuracy_rep_per_class[i]))
             if len(accuracy_adi_per_class[i]) > 0:
                 for key, val in accuracy_adi_per_class[i].items():
                     if key in all_adi:
@@ -155,16 +162,18 @@ def valid(cfg, epoch, loader, model, device, logger=None):
         for key, val in all_adi.items():
             all_adi[key] = val / validClassNum
         for key, val in all_rep.items():
-            all_rep[key] = val / validClassNum  
+            all_rep[key] = val / validClassNum
         logger.add_scalars('ADI/all_class', all_adi, epoch)
         logger.add_scalars('REP/all_class', all_rep, epoch)
 
     return accuracy_adi_per_class, accuracy_rep_per_class, accuracy_adi_per_depth, accuracy_rep_per_depth, depth_range
 
+
 def train(cfg, epoch, max_epoch, loader, model, optimizer, scheduler, device, logger=None):
     model.train()
 
     if get_rank() == 0:
+        pbar = tqdm(enumerate(loader), total=len(loader), dynamic_ncols=True)
         pbar = tqdm(enumerate(loader), total=len(loader), dynamic_ncols=True)
     else:
         pbar = enumerate(loader)
@@ -191,7 +200,8 @@ def train(cfg, epoch, max_epoch, loader, model, optimizer, scheduler, device, lo
 
         if get_rank() == 0:
             current_lr = optimizer.param_groups[0]['lr']
-            pbar_str = (("epoch: %d/%d, lr:%.6f, cls:%.4f, reg:%.4f") % (epoch+1, max_epoch, current_lr, loss_cls, loss_reg))
+            pbar_str = (("epoch: %d/%d, lr:%.6f, cls:%.4f, reg:%.4f") % (
+            epoch + 1, max_epoch, current_lr, loss_cls, loss_reg))
             pbar.set_description(pbar_str)
 
             # writing log to tensorboard
@@ -202,6 +212,7 @@ def train(cfg, epoch, max_epoch, loader, model, optimizer, scheduler, device, lo
                 logger.add_scalar('training/loss_cls', loss_cls, totalStep)
                 logger.add_scalar('training/loss_reg', loss_reg, totalStep)
                 logger.add_scalar('training/loss_all', (loss_cls + loss_reg), totalStep)
+
 
 def data_sampler(dataset, shuffle, distributed):
     if distributed:
@@ -229,22 +240,22 @@ if __name__ == '__main__':
     # device = 'cuda'
     device = cfg['RUNTIME']['RUNNING_DEVICE']
 
-    internal_K = np.array(cfg['INPUT']['INTERNAL_K']).reshape(3,3)
+    internal_K = np.array(cfg['INPUT']['INTERNAL_K']).reshape(3, 3)
 
     train_trans = transform.Compose(
         [
             transform.Resize(
-                cfg['INPUT']['INTERNAL_WIDTH'], 
+                cfg['INPUT']['INTERNAL_WIDTH'],
                 cfg['INPUT']['INTERNAL_HEIGHT'], internal_K),
             transform.RandomShiftScaleRotate(
-                cfg['SOLVER']['AUGMENTATION_SHIFT'], 
-                cfg['SOLVER']['AUGMENTATION_SCALE'], 
-                cfg['SOLVER']['AUGMENTATION_ROTATION'], 
-                cfg['INPUT']['INTERNAL_WIDTH'], 
-                cfg['INPUT']['INTERNAL_HEIGHT'], 
+                cfg['SOLVER']['AUGMENTATION_SHIFT'],
+                cfg['SOLVER']['AUGMENTATION_SCALE'],
+                cfg['SOLVER']['AUGMENTATION_ROTATION'],
+                cfg['INPUT']['INTERNAL_WIDTH'],
+                cfg['INPUT']['INTERNAL_HEIGHT'],
                 internal_K),
             transform.Normalize(
-                cfg['INPUT']['PIXEL_MEAN'], 
+                cfg['INPUT']['PIXEL_MEAN'],
                 cfg['INPUT']['PIXEL_STD']),
             transform.ToTensor(),
         ]
@@ -253,35 +264,35 @@ if __name__ == '__main__':
     valid_trans = transform.Compose(
         [
             transform.Resize(
-                cfg['INPUT']['INTERNAL_WIDTH'], 
-                cfg['INPUT']['INTERNAL_HEIGHT'], 
+                cfg['INPUT']['INTERNAL_WIDTH'],
+                cfg['INPUT']['INTERNAL_HEIGHT'],
                 internal_K),
             transform.Normalize(
-                cfg['INPUT']['PIXEL_MEAN'], 
+                cfg['INPUT']['PIXEL_MEAN'],
                 cfg['INPUT']['PIXEL_STD']),
-            transform.ToTensor(), 
+            transform.ToTensor(),
         ]
     )
 
     train_set = BOP_Dataset(
-        cfg['DATASETS']['TRAIN'], 
-        cfg['DATASETS']['MESH_DIR'], 
-        cfg['DATASETS']['BBOX_FILE'], 
+        cfg['DATASETS']['TRAIN'],
+        cfg['DATASETS']['MESH_DIR'],
+        cfg['DATASETS']['BBOX_FILE'],
         train_trans,
         cfg['SOLVER']['STEPS_PER_EPOCH'] * cfg['SOLVER']['IMS_PER_BATCH'],
-        training = True)
+        training=True)
     valid_set = BOP_Dataset(
         cfg['DATASETS']['VALID'],
-        cfg['DATASETS']['MESH_DIR'], 
-        cfg['DATASETS']['BBOX_FILE'], 
+        cfg['DATASETS']['MESH_DIR'],
+        cfg['DATASETS']['BBOX_FILE'],
         valid_trans,
-        training = False)
+        training=False)
 
     if cfg['MODEL']['BACKBONE'] == 'darknet53':
         backbone = darknet53(pretrained=True)
     else:
         print("unsupported backbone!")
-        assert(0)
+        assert 0
     model = PoseModule(cfg, backbone)
     model = model.to(device)
     start_epoch = 0
@@ -290,7 +301,7 @@ if __name__ == '__main__':
     base_lr = cfg['SOLVER']['BASE_LR'] / cfg['RUNTIME']['N_GPU']
     optimizer = optim.SGD(
         model.parameters(),
-        lr = 0, # the learning rate will be taken care by scheduler
+        lr=0,  # the learning rate will be taken care by scheduler
         momentum=0.9,
         weight_decay=0.0001,
         nesterov=True,
@@ -300,7 +311,7 @@ if __name__ == '__main__':
     max_epoch = math.ceil(cfg['SOLVER']['MAX_ITER'] * cfg['SOLVER']['IMS_PER_BATCH'] / len(train_set))
 
     scheduler_batch = WarmupScheduler(
-        optimizer, base_lr, 
+        optimizer, base_lr,
         cfg['SOLVER']['MAX_ITER'], cfg['SOLVER']['SCHEDULER_POLICY'], cfg['SOLVER']['SCHEDULER_PARAMS'])
 
     if cfg['RUNTIME']['DISTRIBUTED']:
@@ -313,7 +324,7 @@ if __name__ == '__main__':
         model = model.module
 
     # load weight and create working_dir dynamically
-    timestr = time.strftime('%Y%m%d_%H%M%S',time.localtime(time.time()))
+    timestr = time.strftime('%Y%m%d_%H%M%S', time.localtime(time.time()))
     name_wo_ext = os.path.splitext(os.path.split(cfg['RUNTIME']['CONFIG_FILE'])[1])[0]
     working_dir = 'working_dirs' + '/' + name_wo_ext + '/' + timestr + '/'
     cfg['RUNTIME']['WORKING_DIR'] = working_dir
@@ -321,7 +332,7 @@ if __name__ == '__main__':
         try:
             chkpt = torch.load(cfg['RUNTIME']['WEIGHT_FILE'], map_location='cpu')  # load checkpoint
             if 'model' in chkpt:
-                assert('steps' in chkpt and 'optim' in chkpt)
+                assert ('steps' in chkpt and 'optim' in chkpt)
                 scheduler_batch.step_multiple(chkpt['steps'])
                 start_epoch = int(chkpt['steps'] * cfg['SOLVER']['IMS_PER_BATCH'] / len(train_set))
                 model.load_state_dict(chkpt['model'])
@@ -372,10 +383,10 @@ if __name__ == '__main__':
 
         if get_rank() == 0:
             torch.save({
-                'steps': (epoch + 1) * int(len(train_set) / cfg['SOLVER']['IMS_PER_BATCH']), 
-                'model': model.state_dict(), 
+                'steps': (epoch + 1) * int(len(train_set) / cfg['SOLVER']['IMS_PER_BATCH']),
+                'model': model.state_dict(),
                 'optim': optimizer.state_dict(),
-                },
+            },
                 cfg['RUNTIME']['WORKING_DIR'] + 'latest.pth',
             )
             if epoch == (max_epoch - 1):
@@ -383,9 +394,10 @@ if __name__ == '__main__':
 
     # output final info
     if get_rank() == 0:
-        timestr = time.strftime('%Y%m%d_%H%M%S',time.localtime(time.time()))
-        commandstr = ' '.join([str(elem) for elem in sys.argv]) 
-        final_msg = ("finished at: %s\nworking_dir: %s\ncommands:%s" % (timestr, cfg['RUNTIME']['WORKING_DIR'], commandstr))
+        timestr = time.strftime('%Y%m%d_%H%M%S', time.localtime(time.time()))
+        commandstr = ' '.join([str(elem) for elem in sys.argv])
+        final_msg = ("finished at: %s\nworking_dir: %s\ncommands:%s" % (
+        timestr, cfg['RUNTIME']['WORKING_DIR'], commandstr))
         with open(cfg['RUNTIME']['WORKING_DIR'] + 'info.txt', 'w') as f:
             f.write(final_msg)
         print(final_msg)

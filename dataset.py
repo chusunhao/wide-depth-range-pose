@@ -16,6 +16,7 @@ from utils import (
     get_single_bop_annotation
 )
 
+
 class BOP_Dataset(Dataset):
     def __init__(self, image_list_file, mesh_dir, bbox_json, transform, samples_count=0, training=True):
         # file list and data should be in the same directory
@@ -26,14 +27,14 @@ class BOP_Dataset(Dataset):
         # 
         rawSampleCount = len(self.img_files)
         if training and samples_count > 0:
-            self.img_files = random.choices(self.img_files, k = samples_count)
+            self.img_files = random.choices(self.img_files, k=samples_count)
 
         if training:
             random.shuffle(self.img_files)
 
         print("Number of samples: %d / %d" % (len(self.img_files), rawSampleCount))
         # 
-        self.meshes, self.objID_2_clsID= load_bop_meshes(mesh_dir)
+        self.meshes, self.objID_2_clsID = load_bop_meshes(mesh_dir)
         # 
         self.bbox_3d = load_bbox_3d(bbox_json)
 
@@ -60,7 +61,7 @@ class BOP_Dataset(Dataset):
                 raise RuntimeError('load image error')
             # 
             if img.dtype == np.uint16:
-                img = cv2.convertScaleAbs(img, alpha=(255.0/65535.0)).astype(np.uint8)
+                img = cv2.convertScaleAbs(img, alpha=(255.0 / 65535.0)).astype(np.uint8)
             # 
             if len(img.shape) == 2:
                 # convert gray to 3 channels
@@ -70,8 +71,8 @@ class BOP_Dataset(Dataset):
             #     img = np.concatenate((img, np.ones((img.shape[0], img.shape[1], 1), dtype=np.uint8)*255), axis=-1)
             elif img.shape[2] == 4:
                 # having alpha
-                tmpBack = (img[:,:,3] == 0)
-                img[:,:,0:3][tmpBack] = 255 # white background
+                tmpBack = (img[:, :, 3] == 0)
+                img[:, :, 0:3][tmpBack] = 255  # white background
         except:
             print('image %s not found' % img_path)
             return None
@@ -79,7 +80,7 @@ class BOP_Dataset(Dataset):
         # Load labels (BOP format)
         height, width, _ = img.shape
         K, merged_mask, class_ids, rotations, translations = get_single_bop_annotation(img_path, self.objID_2_clsID)
-        
+
         # get (raw) image meta info
         meta_info = {
             'path': img_path,
@@ -95,12 +96,13 @@ class BOP_Dataset(Dataset):
 
         # transformation
         img, target = self.transformer(img, target)
-        target = target.remove_invalids(min_area = 10)
+        target = target.remove_invalids(min_area=10)
         if self.training and len(target) == 0:
             # print("WARNING: skipped a sample without any targets")
             return None
 
         return img, target, meta_info
+
 
 class ImageList:
     def __init__(self, tensors, sizes):
