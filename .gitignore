@@ -1,3 +1,3 @@
-./data
-./.idea
-./working_dirs
+./data/*
+./.idea/*
+./working_dirs/*
