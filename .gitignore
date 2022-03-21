@@ -1,3 +1,6 @@
 /.idea/
 /working_dirs/
 /data/
+.vscode/
+.DS_Store
+__pycache__

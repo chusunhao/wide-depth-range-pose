@@ -10,7 +10,7 @@ def get_argparser():
     parser.add_argument('--config_file', type=str, default='./configs/swisscube.yaml')
     parser.add_argument('--num_workers', type=int, default=0)
     parser.add_argument('--weight_file', type=str, default='')
-    parser.add_argument('--running_device', type=str, default='cuda')
+    parser.add_argument('--running_device', type=str, default='cpu')
 
     return parser
 

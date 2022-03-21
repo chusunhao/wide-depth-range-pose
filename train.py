@@ -174,7 +174,6 @@ def train(cfg, epoch, max_epoch, loader, model, optimizer, scheduler, device, lo
 
     if get_rank() == 0:
         pbar = tqdm(enumerate(loader), total=len(loader), dynamic_ncols=True)
-        pbar = tqdm(enumerate(loader), total=len(loader), dynamic_ncols=True)
     else:
         pbar = enumerate(loader)
 
@@ -183,6 +182,7 @@ def train(cfg, epoch, max_epoch, loader, model, optimizer, scheduler, device, lo
 
         images = images.to(device)
         targets = [target.to(device) for target in targets]
+
 
         _, loss_dict = model(images, targets=targets)
         loss_cls = loss_dict['loss_cls'].mean()
