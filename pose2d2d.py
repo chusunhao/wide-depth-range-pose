@@ -16,7 +16,9 @@ def find_feature_matches(img_1, img_2):
     bf = cv.BFMatcher(cv.NORM_HAMMING)
 
     matches = bf.match(des1, des2)
+    matches = sorted(matches, key=lambda x: x.distance)
 
+    # screening keypoints
     min_distance = matches[0].distance
     max_distance = matches[0].distance
 
@@ -60,6 +62,7 @@ def poes_estimation_2d2d(keypoint_1, keypoint_2, matches):
              [0, fpy, nv / 2],
              [0, 0, 1]]
         K = np.array(k)
+
     # k = [[520.9, 0, 325.1], [0, 521.0, 249.7], [0, 0, 1]]
     k = Camera.K
     print("Intrinsic Matrix:\n", k)
@@ -77,8 +80,6 @@ def poes_estimation_2d2d(keypoint_1, keypoint_2, matches):
     pts1 = np.int32(pts1)
     pts2 = np.int32(pts2)
 
-
-
     # 计算基础矩阵 采用8点法
     f, mask = cv.findFundamentalMat(points1=pts1, points2=pts2, method=cv.FM_8POINT)
     print("Fundamental Matrix:\n", f)
@@ -94,7 +95,6 @@ def poes_estimation_2d2d(keypoint_1, keypoint_2, matches):
     #  [ 7.13611840e-01  6.88254273e-01 -5.05604246e+02]
     #  [-2.71959335e-05 -5.52233475e-05  1.00000000e+00]]
 
-
     # 从本质矩阵恢复旋转信息和平移信息
     retval2, R, t, mask = cv.recoverPose(E=e, points1=pts1, points2=pts2, cameraMatrix=k)
     print("旋转矩阵R:", R)
@@ -109,10 +109,7 @@ def poes_estimation_2d2d(keypoint_1, keypoint_2, matches):
     return h
 
 
-
 if __name__ == "__main__":
-    # img_1 = cv.imread("1.png")
-    # img_2 = cv.imread("2.png")
     img_1 = cv.imread("data/SwissCube_1.0/training/seq_000000/000000/rgb/000001.jpg")
     img_2 = cv.imread("data/SwissCube_1.0/training/seq_000000/000000/rgb/000009.jpg")
 
