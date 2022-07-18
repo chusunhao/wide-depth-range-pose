@@ -43,8 +43,8 @@ np.random.seed(0)
 if True:
     # https://github.com/huaweicloud/dls-example/issues/26
     from torch.utils.data import dataloader
-    from torch.multiprocessing import reductions
-    from multiprocessing.reduction import ForkingPickler
+    # # from torch.multiprocessing import reductions
+    # from multiprocessing.reduction import ForkingPickler
 
     default_collate_func = dataloader.default_collate
 
@@ -55,13 +55,13 @@ if True:
 
 
     setattr(dataloader, 'default_collate', default_collate_override)
-    for t in torch._storage_classes:
-        if sys.version_info[0] == 2:
-            if t in ForkingPickler.dispatch:
-                del ForkingPickler.dispatch[t]
-        else:
-            if t in ForkingPickler._extra_reducers:
-                del ForkingPickler._extra_reducers[t]
+    # for t in torch._storage_classes:
+    #     if sys.version_info[0] == 2:
+    #         if t in ForkingPickler.dispatch:
+    #             del ForkingPickler.dispatch[t]
+    #     else:
+    #         if t in ForkingPickler._extra_reducers:
+    #             del ForkingPickler._extra_reducers[t]
 
 
 def accumulate_dicts(data):
